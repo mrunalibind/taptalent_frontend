@@ -7,6 +7,7 @@ import StatusBar from "./components/StatusBar.jsx";
 function App() {
   const [status, setStatus] = useState("IDLE");
   const [messages, setMessages] = useState([]);
+  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
 
   const startSearch = () => {
     socket.connect();
@@ -26,12 +27,29 @@ function App() {
     setStatus("SEARCHING");
   };
 
+  const handleTyping = () => {
+    socket.emit("typing");
+  };
+
+  const handleStopTyping = () => {
+    socket.emit("stop_typing");
+  };
+
   useEffect(() => {
     socket.on("matched", () => setStatus("CONNECTED"));
     socket.on("searching", () => setStatus("SEARCHING"));
 
     socket.on("receive_message", (data) => {
+      setIsPartnerTyping(false);
       setMessages(prev => [...prev, { sender: "partner", text: data.message }]);
+    });
+
+    socket.on("partner_typing", () => {
+      setIsPartnerTyping(true);
+    });
+
+    socket.on("partner_stop_typing", () => {
+      setIsPartnerTyping(false);
     });
 
     socket.on("partner_disconnected", () => {
@@ -61,7 +79,12 @@ function App() {
       {status === "CONNECTED" && (
         <>
           <ChatBox messages={messages} />
-          <MessageInput onSend={sendMessage} onSkip={handleSkip} />
+
+          <MessageInput onSend={sendMessage} onSkip={handleSkip} onTyping={handleTyping} onStopTyping={handleStopTyping} />
+          
+          {isPartnerTyping && (
+            <p className="typing-indicator">Partner is typing...</p>
+          )}
         </>
       )}
     </div>
